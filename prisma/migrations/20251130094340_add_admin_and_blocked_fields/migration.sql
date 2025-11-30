@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "blocked" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "isAdmin" BOOLEAN NOT NULL DEFAULT false;
