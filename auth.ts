@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { compare } from "bcryptjs";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
+  trustHost: true, // Nécessaire pour fonctionner derrière un reverse proxy (Nginx Proxy Manager)
   providers: [
     Credentials({
       name: "Credentials",
