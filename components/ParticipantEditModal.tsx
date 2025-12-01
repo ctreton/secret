@@ -3,7 +3,27 @@
 import { useState } from "react";
 import { toast } from "./Toast";
 
-export default function ParticipantEditModal({ participant, sessionId, groups, onClose, onSave }) {
+type Participant = {
+  id: string;
+  name: string;
+  email: string;
+  groups: { group: { id: string; name: string } }[];
+};
+
+type Group = {
+  id: string;
+  name: string;
+};
+
+type ParticipantEditModalProps = {
+  participant: Participant;
+  sessionId: string;
+  groups: Group[];
+  onClose: () => void;
+  onSave: (updated: Participant) => void;
+};
+
+export default function ParticipantEditModal({ participant, sessionId, groups, onClose, onSave }: ParticipantEditModalProps) {
   const [name, setName] = useState(participant.name);
   const [email, setEmail] = useState(participant.email);
   const [selectedGroups, setSelectedGroups] = useState(
@@ -79,7 +99,7 @@ export default function ParticipantEditModal({ participant, sessionId, groups, o
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-300">Groupes</p>
             <div className="flex flex-wrap gap-2 text-[10px]">
-            {groups.map((g: any) => (
+            {groups.map((g) => (
                 <button
                   key={g.id}
                   type="button"
