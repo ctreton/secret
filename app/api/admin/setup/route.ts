@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { validatePassword } from "@/lib/passwordValidation";
-import { sendVerificationEmail } from "@/lib/mailer";
 
 export async function POST(req: Request) {
   try {
@@ -66,17 +65,9 @@ export async function POST(req: Request) {
         isAdmin: true,
         isSuperAdmin: true, // Le premier admin est un super admin
         blocked: false,
-        emailVerified: false,
+        emailVerified: true, // Le premier admin est automatiquement validé (pas de SMTP configuré)
       },
     });
-
-    // Envoyer l'email de validation (ne pas bloquer si l'envoi échoue)
-    try {
-      await sendVerificationEmail(user.id, user.email, user.name);
-    } catch (error) {
-      console.error("Erreur lors de l'envoi de l'email de validation:", error);
-      // On continue même si l'email n'a pas pu être envoyé
-    }
 
     return NextResponse.json({
       id: user.id,

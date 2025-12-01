@@ -59,7 +59,7 @@ export default function AdminSetupClient() {
         return;
       }
 
-      toast.success("Administrateur créé avec succès ! Un email de validation a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception.");
+      toast.success("Administrateur créé avec succès ! Votre compte est automatiquement validé.");
       // Passer à l'étape de configuration SMTP
       setStep("smtp");
     } catch (error) {
