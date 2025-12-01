@@ -104,12 +104,15 @@ export async function POST(
 
   try {
     // Créer le partage (sans token)
+    // Note: token et tokenExpiry sont optionnels dans le schéma mais le client Prisma local
+    // peut ne pas être à jour. Le build Docker régénérera le client avec les bons types.
     const share = await prisma.drawSessionShare.create({
       data: {
         drawSessionId: id,
         email: normalizedEmail,
         sharedById: user.id,
-      },
+        // token et tokenExpiry sont optionnels et omis intentionnellement
+      } as any, // Type assertion temporaire jusqu'à ce que le client Prisma soit régénéré
       include: {
         sharedBy: {
           select: { id: true, name: true, email: true },

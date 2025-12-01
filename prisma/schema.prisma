@@ -108,7 +108,7 @@ model DrawSessionShare {
   drawSessionId String
   drawSession   DrawSession @relation(fields: [drawSessionId], references: [id], onDelete: Cascade)
   email         String
-  token         String?     @unique
+  token         String?
   tokenExpiry   DateTime?
   sharedById    String
   sharedBy      User        @relation("SharedBy", fields: [sharedById], references: [id])
@@ -119,4 +119,5 @@ model DrawSessionShare {
 
   @@index([drawSessionId])
   @@index([email])
+  @@index([token])
 }
