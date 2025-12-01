@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/getCurrentUser";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string; participantId: string } }
+  { params }: { params: Promise<{ id: string; participantId: string }> }
 ) {
-  const userId = await getCurrentUserId();
+  const { id, participantId } = await params;
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  
+  const userId = user.id;
   const body = await req.json();
 
   const { name, email, groupIds } = body;
@@ -20,7 +27,7 @@ export async function PATCH(
 
   // vérifie ownership du tirage
   const session = await prisma.drawSession.findUnique({
-    where: { id: params.id, ownerId: userId },
+    where: { id, ownerId: userId },
   });
 
   if (!session) {
@@ -35,7 +42,7 @@ export async function PATCH(
     where: {
       drawSessionId: session.id,
       name: name.trim(),
-      id: { not: params.participantId },
+      id: { not: participantId },
     },
   });
 
@@ -48,7 +55,7 @@ export async function PATCH(
 
   try {
   const updated = await prisma.participant.update({
-    where: { id: params.participantId },
+    where: { id: participantId },
     data: {
         name: name.trim(),
       email,

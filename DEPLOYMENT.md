@@ -46,66 +46,18 @@ Remplissez les variables suivantes (voir `.env.example` pour les détails) :
 
 ```env
 # Base de données
-DATABASE_URL="postgresql://secretsanta:VOTRE_MOT_DE_PASSE@db:5432/secretsanta"
+DB_PASSWORD=VOTRE_MOT_DE_PASSE
+DATABASE_URL="postgresql://secretsanta:${DB_PASSWORD}@db:5432/secretsanta"
 
 # NextAuth
 NEXTAUTH_URL="https://votre-domaine.com"
 NEXTAUTH_SECRET="générez-une-clé-secrète-aléatoire-ici"
-
-# SMTP (fallback si non configuré dans l'admin)
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_SECURE="false"
-SMTP_USER="votre-email@gmail.com"
-SMTP_PASS="votre-mot-de-passe-app"
-SMTP_SENDER="votre-email@gmail.com"
-
-# Optionnel
 NEXT_PUBLIC_BASE_URL="https://votre-domaine.com"
 ```
 
 **Important** : Générez un `NEXTAUTH_SECRET` sécurisé :
 ```bash
 openssl rand -base64 32
-```
-
-### Étape 4 : Modifier docker-compose.yml pour la production
-
-Créez un fichier `docker-compose.prod.yml` :
-
-```yaml
-services:
-  db:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: secretsanta
-      POSTGRES_USER: secretsanta
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-  web:
-    build: .
-    restart: unless-stopped
-    depends_on:
-      - db
-    env_file:
-      - .env
-    ports:
-      - "3000:3000"
-    networks:
-      - app-network
-    command: sh -c "npx prisma migrate deploy && npm start"
-
-volumes:
-  db_data:
-
-networks:
-  app-network:
-    driver: bridge
 ```
 
 Ajoutez `DB_PASSWORD` dans votre `.env`.
