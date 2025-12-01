@@ -46,6 +46,11 @@ export default async function DrawSessionsPage() {
           acceptedAt: { not: null },
           acceptedById: user.id,
         },
+        include: {
+          sharedBy: {
+            select: { id: true, name: true, email: true },
+          },
+        },
         take: 1,
       },
     },
@@ -75,9 +80,16 @@ export default async function DrawSessionsPage() {
 
   // Formater les dates côté serveur pour éviter les erreurs d'hydratation
   const sessionsWithFormattedDates = sessions.map((s) => ({
-    ...s,
+    id: s.id,
+    name: s.name,
+    description: s.description,
     createdAt: formatDate(s.createdAt),
     isShared: s.ownerId !== user.id, // Marquer les tirages partagés
+    owner: s.owner,
+    shares: s.shares.map((share) => ({
+      id: share.id,
+      sharedBy: share.sharedBy,
+    })),
   }));
 
   const invitationsWithFormattedDates = pendingInvitations.map((inv) => ({
