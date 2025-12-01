@@ -24,12 +24,36 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { host, port, secure, userName, password, sender, testEmail } = body;
+    let { host, port, secure, userName, password, sender, testEmail } = body;
+
+    // Si le mot de passe n'est pas fourni, récupérer la config depuis la base de données
+    if (!password) {
+      const savedConfig = await prisma.smtpConfig.findUnique({
+        where: { userId: user.id },
+      });
+      if (savedConfig) {
+        // Utiliser les valeurs sauvegardées si elles ne sont pas fournies
+        host = host || savedConfig.host;
+        port = port || savedConfig.port;
+        secure = secure !== undefined ? secure : savedConfig.secure;
+        userName = userName || savedConfig.userName || undefined;
+        password = savedConfig.password || undefined;
+        sender = sender || savedConfig.sender;
+      }
+    }
 
     // Validation
     if (!host || !port || !sender) {
       return NextResponse.json(
         { error: "Host, port et expéditeur sont requis" },
+        { status: 400 }
+      );
+    }
+
+    // Vérifier que le mot de passe est fourni si un nom d'utilisateur est fourni
+    if (userName && !password) {
+      return NextResponse.json(
+        { error: "Le mot de passe est requis pour l'authentification SMTP" },
         { status: 400 }
       );
     }
@@ -44,26 +68,50 @@ export async function POST(req: NextRequest) {
     }
 
     // Configuration TLS pour Gmail et autres serveurs SMTP
-    // Port 465 = SSL direct (secure: true)
-    // Port 587 = STARTTLS (secure: false, requireTLS: true)
+    // Port 465 = SSL direct (secure: true) - connexion SSL dès le début
+    // Port 587 = STARTTLS (secure: false) - connexion non sécurisée puis upgrade TLS
     const portNum = Number(port);
     const isPort465 = portNum === 465;
     const isPort587 = portNum === 587;
     
-    // Créer le transporteur avec la config fournie
-    const transporter = nodemailer.createTransport({
+    // Pour Gmail, déterminer automatiquement la configuration selon le port
+    // Ignorer la valeur 'secure' de l'utilisateur si c'est un port Gmail standard
+    const finalSecure = isPort465 ? true : (isPort587 ? false : (secure ?? false));
+    
+    console.log(`[admin/smtp/test] Configuration: host=${host}, port=${portNum}, secure=${finalSecure}, isPort465=${isPort465}, isPort587=${isPort587}`);
+    
+    // Configuration de base
+    const transportConfig: any = {
       host,
       port: portNum,
-      secure: isPort465 ? true : (secure ?? false), // Port 465 nécessite secure: true
-      auth: userName ? { user: userName, pass: password || "" } : undefined,
-      tls: {
-        // Pour Gmail et autres serveurs modernes
-        rejectUnauthorized: false, // Accepter les certificats auto-signés si nécessaire
-        minVersion: 'TLSv1.2',
-      },
-      // Pour le port 587 (STARTTLS), s'assurer que TLS est requis
-      ...(isPort587 && !secure ? { requireTLS: true } : {}),
-    });
+      secure: finalSecure,
+      auth: userName && password ? { user: userName, pass: password } : undefined,
+    };
+    
+    // Configuration spécifique pour le port 587 (STARTTLS)
+    if (isPort587) {
+      // Port 587 : STARTTLS - connexion non sécurisée puis upgrade
+      transportConfig.requireTLS = true;
+      transportConfig.ignoreTLS = false;
+      transportConfig.tls = {
+        rejectUnauthorized: false,
+      };
+    } else if (isPort465) {
+      // Port 465 : SSL direct - connexion SSL dès le début
+      transportConfig.tls = {
+        rejectUnauthorized: false,
+      };
+    } else {
+      // Autres ports : utiliser la configuration par défaut
+      transportConfig.tls = {
+        rejectUnauthorized: false,
+      };
+    }
+    
+    console.log(`[admin/smtp/test] Transport config:`, JSON.stringify({ ...transportConfig, auth: transportConfig.auth ? { user: transportConfig.auth.user, pass: "***" } : undefined }, null, 2));
+    
+    // Créer le transporteur avec la config fournie
+    const transporter = nodemailer.createTransport(transportConfig);
 
     // Envoyer l'email de test
     await transporter.sendMail({
@@ -125,10 +173,20 @@ Secret Santa Manager`,
     });
   } catch (error: any) {
     console.error("[admin/smtp/test] Erreur lors de l'envoi de l'email de test:", error);
+    
+    // Message d'erreur plus explicite pour les erreurs d'authentification
+    let errorMessage = error.message || "Vérifiez votre configuration SMTP";
+    let errorDetails = errorMessage;
+    
+    if (error.code === 'EAUTH' || error.responseCode === 535) {
+      errorMessage = "Erreur d'authentification SMTP";
+      errorDetails = "Le nom d'utilisateur ou le mot de passe est incorrect. Pour Gmail, assurez-vous d'utiliser un mot de passe d'application (pas votre mot de passe Gmail).";
+    }
+    
     return NextResponse.json(
       {
-        error: "Erreur lors de l'envoi de l'email de test",
-        details: error.message || "Vérifiez votre configuration SMTP",
+        error: errorMessage,
+        details: errorDetails,
       },
       { status: 500 }
     );

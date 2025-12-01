@@ -60,10 +60,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Récupérer la config existante pour préserver le mot de passe s'il n'est pas fourni
+    const existingConfig = await prisma.smtpConfig.findUnique({
+      where: { userId: user.id },
+    });
+
+    // Préparer les données de mise à jour
+    const updateData: any = {
+      host,
+      port: Number(port),
+      secure: secure ?? false,
+      userName: userName || null,
+      sender,
+    };
+
+    // Ne mettre à jour le mot de passe que s'il est fourni (non vide)
+    if (password && password.trim() !== "") {
+      updateData.password = password;
+    } else if (existingConfig) {
+      // Conserver le mot de passe existant si aucun nouveau n'est fourni
+      updateData.password = existingConfig.password;
+    } else {
+      updateData.password = null;
+    }
+
     // Sauvegarder la config SMTP du super admin
     const cfg = await prisma.smtpConfig.upsert({
       where: { userId: user.id },
-      update: { host, port, secure: secure ?? false, userName, password, sender },
+      update: updateData,
       create: {
         userId: user.id,
         host,

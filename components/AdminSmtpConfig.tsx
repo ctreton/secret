@@ -164,9 +164,12 @@ export default function AdminSmtpConfig({ onComplete }: AdminSmtpConfigProps = {
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-pink-400"
             type="number"
             value={cfg.port}
-            onChange={(e) =>
-              setCfg({ ...cfg, port: Number(e.target.value) || 587 })
-            }
+            onChange={(e) => {
+              const newPort = Number(e.target.value) || 587;
+              // Pour Gmail : port 587 = secure false, port 465 = secure true
+              const newSecure = newPort === 465 ? true : (newPort === 587 ? false : cfg.secure);
+              setCfg({ ...cfg, port: newPort, secure: newSecure });
+            }}
             placeholder="587"
           />
         </div>
@@ -209,17 +212,26 @@ export default function AdminSmtpConfig({ onComplete }: AdminSmtpConfigProps = {
           />
         </div>
 
-        <div className="flex items-center space-x-2 md:col-span-2">
-          <input
-            type="checkbox"
-            id="secure"
-            checked={cfg.secure}
-            onChange={(e) => setCfg({ ...cfg, secure: e.target.checked })}
-            className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-pink-500 focus:ring-pink-400"
-          />
+        <div className="space-y-1 md:col-span-2">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="secure"
+              checked={cfg.secure}
+              onChange={(e) => setCfg({ ...cfg, secure: e.target.checked })}
+              className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-pink-500 focus:ring-pink-400"
+              disabled={cfg.port === 587 || cfg.port === 465}
+            />
           <label htmlFor="secure" className="text-xs text-slate-300">
             Connexion sécurisée (TLS/SSL)
+            {cfg.port === 587 && (
+              <span className="ml-2 text-slate-500">(désactivé pour port 587 - STARTTLS)</span>
+            )}
+            {cfg.port === 465 && (
+              <span className="ml-2 text-slate-500">(activé pour port 465 - SSL direct)</span>
+            )}
           </label>
+          </div>
         </div>
       </div>
 

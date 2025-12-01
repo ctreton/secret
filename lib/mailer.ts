@@ -32,24 +32,41 @@ export async function getTransportForUser(userId: string) {
   const sender = cfg?.sender ?? process.env.SMTP_SENDER!;
 
   // Configuration TLS pour Gmail et autres serveurs SMTP
-  // Port 465 = SSL direct (secure: true)
-  // Port 587 = STARTTLS (secure: false, requireTLS: true)
+  // Port 465 = SSL direct (secure: true) - connexion SSL dès le début
+  // Port 587 = STARTTLS (secure: false) - connexion non sécurisée puis upgrade TLS
   const isPort465 = port === 465;
   const isPort587 = port === 587;
   
-  const transporter = nodemailer.createTransport({
+  // Pour Gmail, déterminer automatiquement la configuration selon le port
+  const finalSecure = isPort465 ? true : (isPort587 ? false : (secure ?? false));
+  
+  // Configuration de base
+  const transportConfig: any = {
     host,
     port,
-    secure: isPort465 ? true : (secure ?? false), // Port 465 nécessite secure: true
+    secure: finalSecure,
     auth: user ? { user, pass } : undefined,
-    tls: {
-      // Pour Gmail et autres serveurs modernes
-      rejectUnauthorized: false, // Accepter les certificats auto-signés si nécessaire
-      minVersion: 'TLSv1.2',
-    },
-    // Pour le port 587 (STARTTLS), s'assurer que TLS est requis
-    ...(isPort587 && !secure ? { requireTLS: true } : {}),
-  });
+  };
+  
+  // Configuration spécifique pour le port 587 (STARTTLS)
+  if (isPort587) {
+    transportConfig.requireTLS = true;
+    transportConfig.tls = {
+      rejectUnauthorized: false,
+    };
+  } else if (isPort465) {
+    // Port 465 : SSL direct
+    transportConfig.tls = {
+      rejectUnauthorized: false,
+    };
+  } else {
+    // Autres ports : utiliser la configuration par défaut
+    transportConfig.tls = {
+      rejectUnauthorized: false,
+    };
+  }
+  
+  const transporter = nodemailer.createTransport(transportConfig);
 
   return { transporter, sender };
 }
