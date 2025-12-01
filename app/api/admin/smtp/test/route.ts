@@ -43,12 +43,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Configuration TLS pour Gmail et autres serveurs SMTP
+    // Port 465 = SSL direct (secure: true)
+    // Port 587 = STARTTLS (secure: false, requireTLS: true)
+    const portNum = Number(port);
+    const isPort465 = portNum === 465;
+    const isPort587 = portNum === 587;
+    
     // Créer le transporteur avec la config fournie
     const transporter = nodemailer.createTransport({
       host,
-      port: Number(port),
-      secure: secure ?? false,
+      port: portNum,
+      secure: isPort465 ? true : (secure ?? false), // Port 465 nécessite secure: true
       auth: userName ? { user: userName, pass: password || "" } : undefined,
+      tls: {
+        // Pour Gmail et autres serveurs modernes
+        rejectUnauthorized: false, // Accepter les certificats auto-signés si nécessaire
+        minVersion: 'TLSv1.2',
+      },
+      // Pour le port 587 (STARTTLS), s'assurer que TLS est requis
+      ...(isPort587 && !secure ? { requireTLS: true } : {}),
     });
 
     // Envoyer l'email de test
