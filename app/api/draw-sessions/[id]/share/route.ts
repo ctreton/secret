@@ -123,7 +123,7 @@ export async function POST(
         share.id,
         normalizedEmail,
         session.name,
-        user.name
+        user.name || null
       );
     } catch (error) {
       console.error("Erreur lors de l'envoi de l'email d'invitation:", error);
